@@ -206,10 +206,11 @@
 
 
     const main = async () => {
+        var neural_network = null;
         try {
             const response = await fetch('./data/net.json');
             const json = await response.json();
-            var neural_network = new convnetjs.Net();
+            neural_network = new convnetjs.Net();
             neural_network.fromJSON(json);
             console.log(neural_network);
         } catch(e) {
