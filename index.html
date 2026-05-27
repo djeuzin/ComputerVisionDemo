@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="pt", >
+<head>
+    <meta charset="UTF-8">
+    <title>Demo visão computacional</title>
+</head>
+
+<body style="justify-content: center;">
+    <style>
+        /* Highlights every div with a red outline */   
+        div {
+            outline: 1px solid red;
+            justify-content: center;
+            margin: 10px;
+            display: flex;
+            align-items: center;
+        }
+
+        button {
+            margin: 20px;
+            width: 75px;
+            height: 40px;
+        }
+    </style>
+    <div id="canvasDiv">
+        <canvas id="canvas" width="240" height="240" style="background-color: #000000;"></canvas>
+    </div>
+    <div id="smallDiv">
+        <canvas id="small", width="24", height="24", style="background-color: #000000; margin-right: 10px;"></canvas>
+        <br>Imagem enviada para a rede neural (24x24)</br>
+    </div>
+    <div id="butnDiv">
+        <button id="clearBtn">Limpar</button>
+        <button id="runBtn">Predizer</button>
+    </div>
+
+    <div id="resultsDiv">
+        <h3>Resultados</h3>
+
+        <div id="pieChartDiv">
+            <canvas id="pieChart" style="width:100%;max-width:700px"></canvas>
+        </div>
+    </div>
+    
+    <div id="visnet"></div>
+    <script src="build/convnet-min.js"></script>
+    <script src="build/vis.js"></script> 
+    <script src="build/util.js"></script>
+    <script src="build/convnet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>
+    <script>
+    // elt is the element to add all the canvas activation drawings into
+    // A is the Vol() to use
+    // scale is a multiplier to make the visualizations larger. Make higher for larger pictures
+    // if grads is true then gradients are used instead
+    var draw_activations = function(elt, A, scale, grads) {
+
+      var s = scale || 2; // scale
+      var draw_grads = false;
+      if(typeof(grads) !== 'undefined') draw_grads = grads;
+
+      // get max and min activation to scale the maps automatically
+      var w = draw_grads ? A.dw : A.w;
+      var mm = cnnutil.maxmin(w);
+
+      // create the canvas elements, draw and add to DOM
+      for(var d=0;d<A.depth;d++) {
+
+        var canv = document.createElement('canvas');
+        canv.className = 'actmap';
+        var W = A.sx * s;
+        var H = A.sy * s;
+        canv.width = W;
+        canv.height = H;
+        var ctx = canv.getContext('2d');
+        var g = ctx.createImageData(W, H);
+
+        for(var x=0;x<A.sx;x++) {
+          for(var y=0;y<A.sy;y++) {
+            if(draw_grads) {
+              var dval = Math.floor((A.get_grad(x,y,d)-mm.minv)/mm.dv*255);
+            } else {
+              var dval = Math.floor((A.get(x,y,d)-mm.minv)/mm.dv*255);  
+            }
+            for(var dx=0;dx<s;dx++) {
+              for(var dy=0;dy<s;dy++) {
+                var pp = ((W * (y*s+dy)) + (dx + x*s)) * 4;
+                for(var i=0;i<3;i++) { g.data[pp + i] = dval; } // rgb
+                g.data[pp+3] = 255; // alpha channel
+              }
+            }
+          }
+        }
+        ctx.putImageData(g, 0, 0);
+        elt.appendChild(canv);
+      }  
+    }
+
+    var visualize_activations = function(net, elt, l) {
+
+      // clear the element
+      elt.innerHTML = "";
+
+      // show activations in each layer
+      var L = net.layers[l];
+
+        var layer_div = document.createElement('div');
+
+        // visualize activations
+        var activations_div = document.createElement('div');
+        activations_div.appendChild(document.createTextNode('Activations:'));
+        activations_div.appendChild(document.createElement('br'));
+        activations_div.className = 'layer_act';
+        var scale = 2;
+        if(L.layer_type==='softmax' || L.layer_type==='fc') scale = 10; // for softmax
+        draw_activations(activations_div, L.out_act, scale);
+
+        // visualize filters if they are of reasonable size
+        if(L.layer_type === 'conv') {
+          var filters_div = document.createElement('div');
+          activations_div.appendChild(filters_div);
+        }
+        layer_div.appendChild(activations_div);
+
+        // print some stats on left of the layer
+        layer_div.className = 'layer ' + 'lt' + L.layer_type;
+        var title_div = document.createElement('div');
+        title_div.className = 'ltitle'
+        var t = L.layer_type + ' (' + L.out_sx + 'x' + L.out_sy + 'x' + L.out_depth + ')';
+        title_div.appendChild(document.createTextNode(t));
+        layer_div.appendChild(title_div);
+
+        if(L.layer_type==='conv') {
+          var t = 'filter size ' + L.filters[0].sx + 'x' + L.filters[0].sy + 'x' + L.filters[0].depth + ', stride ' + L.stride;
+          layer_div.appendChild(document.createTextNode(t));
+          layer_div.appendChild(document.createElement('br'));
+        }
+        if(L.layer_type==='pool') {
+          var t = 'pooling size ' + L.sx + 'x' + L.sy + ', stride ' + L.stride;
+          layer_div.appendChild(document.createTextNode(t));
+          layer_div.appendChild(document.createElement('br'));
+        }
+
+        // find min, max activations and display them
+        var mma = cnnutil.maxmin(L.out_act.w);
+        var t = 'max activation: ' + cnnutil.f2t(mma.maxv) + ', min: ' + cnnutil.f2t(mma.minv);
+        layer_div.appendChild(document.createTextNode(t));
+        layer_div.appendChild(document.createElement('br'));
+
+        var mma = cnnutil.maxmin(L.out_act.dw);
+        var t = 'max gradient: ' + cnnutil.f2t(mma.maxv) + ', min: ' + cnnutil.f2t(mma.minv);
+        layer_div.appendChild(document.createTextNode(t));
+        layer_div.appendChild(document.createElement('br'));
+
+        // number of parameters
+        if(L.layer_type==='conv') {
+          var tot_params = L.sx*L.sy*L.in_depth*L.filters.length + L.filters.length;
+          var t = 'parameters: ' + L.filters.length + 'x' + L.sx + 'x' + L.sy + 'x' + L.in_depth + '+' + L.filters.length + ' = ' + tot_params;
+          layer_div.appendChild(document.createTextNode(t));
+          layer_div.appendChild(document.createElement('br'));
+        }
+        if(L.layer_type==='fc') {
+          var tot_params = L.num_inputs*L.filters.length + L.filters.length;
+          var t = 'parameters: ' + L.filters.length + 'x' + L.num_inputs + '+' + L.filters.length + ' = ' + tot_params;
+          layer_div.appendChild(document.createTextNode(t));
+          layer_div.appendChild(document.createElement('br'));
+        }
+
+        // css madness needed here...
+        var clear = document.createElement('div');
+        clear.className = 'clear';
+        layer_div.appendChild(clear);
+
+        elt.appendChild(layer_div);
+    }
+
+    var barColors = [
+      "#b91d47",
+      "#00aba9",
+      "#2b5797",
+      "#e8c3b9",
+      "#1e7145",
+      "#8ace00",
+      "#00ab30",
+      "#180fa1",
+      "#a19384",
+      "#5640af",
+    ];
+
+    var chart = new Chart("pieChart", {
+        type: "pie",
+        data: {
+        labels: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'],
+        datasets: [{
+          backgroundColor: barColors,
+          data: []
+        }]
+      },
+      options: {
+        title: {
+          display: true,
+          text: "Predição"
+        }
+      }
+    });
+
+
+    const main = async () => {
+        try {
+            const response = await fetch('../data/net.json');
+            const json = await response.json();
+            var neural_network = new convnetjs.Net();
+            neural_network.fromJSON(json);
+            console.log(neural_network);
+        } catch(e) {
+            console.log("Erro");
+        }
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let painting = false;
+
+        const small = document.getElementById('small');
+        const smallCtx = small.getContext('2d');
+
+        document.getElementById('clearBtn').addEventListener('click', () => {
+               ctx.clearRect(0, 0, canvas.width, canvas.height);
+               smallCtx.clearRect(0, 0, small.width, small.height);
+           });
+
+        document.getElementById('runBtn').addEventListener('click', () => {
+            const vol = new convnetjs.Vol(24, 24, 1);
+            const imageData = smallCtx.getImageData(0, 0, 24, 24);
+
+            for (let i=0; i < 24 * 24; i++) {
+                vol.w[i] = imageData.data[i * 4] / 255.0;
+            }
+
+            const result = neural_network.forward(vol);
+            console.log(result.w);
+
+            chart.data.datasets[0].data = result.w;
+            chart.update()
+            //var vis_elt = document.getElementById("visnet");
+            //visualize_activations(neural_network, vis_elt, 1);
+            //visualize_activations(neural_network, vis_elt, 3);  
+        });
+
+        function startPosition(e) {
+            painting = true;
+            draw(e);
+        }
+
+        function finishedPosition() {
+            painting = false;
+            ctx.beginPath(); // Reset the path so lines don't connect when you click again
+        }
+
+        function draw(e) {
+            if (!painting) return;
+            ctx.lineWidth = 10;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#ffffff';
+
+            // Get exact cursor position (handles mouse & touch)
+            const pos = e.type.includes('touch') 
+                ? { x: e.touches[0].clientX - canvas.offsetLeft, y: e.touches[0].clientY - canvas.offsetTop }
+                : { x: e.clientX - canvas.offsetLeft, y: e.clientY - canvas.offsetTop };
+
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+            smallCtx.drawImage(canvas, 0, 0, 24, 24);
+        }
+
+        // Event Listeners for Mouse
+        canvas.addEventListener('mousedown', startPosition);
+        canvas.addEventListener('mouseup', finishedPosition);
+        canvas.addEventListener('mousemove', draw);
+
+        // Event Listeners for Touch (Mobile)
+        canvas.addEventListener('touchstart', startPosition);
+        canvas.addEventListener('touchend', finishedPosition);
+        canvas.addEventListener('touchmove', draw);
+    };
+    main();
+    
+    </script>
+</body>
+</html>
