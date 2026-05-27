@@ -207,7 +207,7 @@
 
     const main = async () => {
         try {
-            const response = await fetch('../data/net.json');
+            const response = await fetch('./data/net.json');
             const json = await response.json();
             var neural_network = new convnetjs.Net();
             neural_network.fromJSON(json);
