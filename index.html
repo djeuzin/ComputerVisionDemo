@@ -230,20 +230,43 @@
 
         document.getElementById('runBtn').addEventListener('click', () => {
             const vol = new convnetjs.Vol(24, 24, 1);
-            const imageData = smallCtx.getImageData(0, 0, 24, 24);
+            //const imageData = smallCtx.getImageData(0, 0, 24, 24);
+
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            let minX = canvas.width, maxX = 0, minY = canvas.height, maxY = 0;
+
+            for (let y = 0; y < canvas.height; y++) {
+                for (let x = 0; x < canvas.width; x++) {
+                    const r = imageData.data[(y * canvas.width + x) * 4];
+                    if (r > 0) {
+                        if (x < minX) minX = x;
+                        if (x > maxX) maxX = x;
+                        if (y < minY) minY = y;
+                        if (y > maxY) maxY = y;
+                    }
+                }
+            }
+
+            const pad = 10;
+            const srcX = Math.max(0, minX - pad);
+            const srcY = Math.max(0, minY - pad);
+            const srcW = Math.min(canvas.width, maxX + pad) - srcX;
+            const srcH = Math.min(canvas.height, maxY + pad) - srcY;
+
+            smallCtx.clearRect(0, 0, 24, 24);
+            smallCtx.drawImage(canvas, srcX, srcY, srcW, srcH, 0, 0, 24, 24);
+
+            var croppedImageData = smallCtx.getImageData(0, 0, 24, 24);
 
             for (let i=0; i < 24 * 24; i++) {
-                vol.w[i] = imageData.data[i * 4] / 255.0;
+                vol.w[i] = croppedImageData.data[i * 4] / 255.0;
             }
 
             const result = neural_network.forward(vol);
             console.log(result.w);
 
             chart.data.datasets[0].data = result.w;
-            chart.update()
-            //var vis_elt = document.getElementById("visnet");
-            //visualize_activations(neural_network, vis_elt, 1);
-            //visualize_activations(neural_network, vis_elt, 3);  
+            chart.update() 
         });
 
         function startPosition(e) {
