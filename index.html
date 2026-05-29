@@ -106,6 +106,8 @@
         }
 
         const canvas = document.getElementById('canvas');
+        canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+        canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
         const ctx = canvas.getContext('2d');
         let painting = false;
 
