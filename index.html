@@ -3,27 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <title>Demo visão computacional</title>
+    <link rel="stylesheet" href="./src/style.css">
 </head>
 
-<body style="justify-content: center;">
-    <style>
-        /* Highlights every div with a red outline */   
-        div {
-            outline: 1px solid red;
-            justify-content: center;
-            margin: 10px;
-            display: flex;
-            align-items: center;
-        }
-
-        button {
-            margin: 20px;
-            width: 75px;
-            height: 40px;
-        }
-    </style>
+<body>
+    <h1 id="demonstra-o-de-vis-o-computacional">Demonstração de visão computacional</h1>
+    <p>Desenhe no quadrado preto um digito de 0 a 9. Aperte o botão predizer e veja o resultado previsto para o digito desenhado. O gráfico de pizza representa qual a porcentagem para cada rótulo (qual digito) a rede computou. Via de regra, tomamos a maior probabilidade como a classificação final da rede.</p>
     <div id="canvasDiv">
         <canvas id="canvas" width="240" height="240" style="background-color: #000000;"></canvas>
+        <div id="pieChartDiv">
+            <canvas id="pieChart" style="width:100%;max-width:700px"></canvas>
+        </div>
     </div>
     <div id="smallDiv">
         <canvas id="small", width="24", height="24", style="background-color: #000000; margin-right: 10px;"></canvas>
@@ -34,13 +24,25 @@
         <button id="runBtn">Predizer</button>
     </div>
 
-    <div id="resultsDiv">
-        <h3>Resultados</h3>
+    <h2 id="o-que-acontece-quando-o-bot-o-apertado-">O que acontece quando o botão é apertado?</h2>
+    <p>Assim que você aperta o botão algumas coisas acontecem:</p>
+    <ul>
+    <li>A imagem que você desenhou é cortada para que o desenho que você faça ocupe todo o quadrado, removendo o espaço extra.</li>
+    <li>Em seguida a dimensão do desenho é reduzida para 24x24 pixels, pois a rede trabalha com imagens dessa dimensão apenas.</li>
+    <li>Finalmente, uma rede convolucional (exibida na imagem) roda no seu navegador e classifica o que você desenhou!
+    O seu desenho passa por 8 filtros (kernels) de dimensões 5x5x1 que geram uma imagem de 8 canais (24x24x8). Essa imagem passa por uma camada de pooling que reduz a dimensão para 12x12x8. Em seguida há mais uma etapa de convolução com filtros 5x5x8 que geram uma imagem de 16 canais (12x12x16). Mais uma camada de pooling que reduz a dimensão da imagem para 4x4x16. Por fim, a imagem 4x4x16 passa por uma camada completamente conexa (fully connected) com uma saída de 10 valores que são por fim passados para a função softmax que nos dá a probabilidade para cada digito.</li>
+    </ul>
 
-        <div id="pieChartDiv">
-            <canvas id="pieChart" style="width:100%;max-width:700px"></canvas>
-        </div>
-    </div>
+    <h2 id="refer-ncias">Referências</h2>
+    <p>Essa demonstração foi feita com base na biblioteca e sites desenvolvidos por Andrej Karpathy. O link para o site dele, outras fontes e referências úteis sobre aprendizado de máquina assim como o código fonte desse site seguem abaixo:</p>
+    <ul>
+    </li>
+    <li><a href="https://github.com/djeuzin/ComputerVisionDemo">Repositório desse site no github</a></li>
+    <li><a href="https://cs.stanford.edu/people/karpathy/convnetjs/">Site usado como base para essa demonstração</a></li>
+    <li><a href="http://neuralnetworksanddeeplearning.com/chap2.html?ref=jeremyjordan.me">Como funciona o algoritmo de retro-propagação (backpropagation)</a></li>
+    <li><a href="https://www.jeremyjordan.me/neural-networks-training/">Treinando com retro-propagação</a></li>
+    <li><a href="https://www.youtube.com/playlist?list=PLBAGcD3siRDjBU8sKRk0zX9pMz9qeVxud">Curso completo sobre redes neurais convolucionais (CNNs)</a></li>
+    </ul>
     
     <div id="visnet"></div>
     <script src="build/convnet-min.js"></script>
@@ -49,130 +51,7 @@
     <script src="build/convnet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>
     <script>
-    // elt is the element to add all the canvas activation drawings into
-    // A is the Vol() to use
-    // scale is a multiplier to make the visualizations larger. Make higher for larger pictures
-    // if grads is true then gradients are used instead
-    var draw_activations = function(elt, A, scale, grads) {
-
-      var s = scale || 2; // scale
-      var draw_grads = false;
-      if(typeof(grads) !== 'undefined') draw_grads = grads;
-
-      // get max and min activation to scale the maps automatically
-      var w = draw_grads ? A.dw : A.w;
-      var mm = cnnutil.maxmin(w);
-
-      // create the canvas elements, draw and add to DOM
-      for(var d=0;d<A.depth;d++) {
-
-        var canv = document.createElement('canvas');
-        canv.className = 'actmap';
-        var W = A.sx * s;
-        var H = A.sy * s;
-        canv.width = W;
-        canv.height = H;
-        var ctx = canv.getContext('2d');
-        var g = ctx.createImageData(W, H);
-
-        for(var x=0;x<A.sx;x++) {
-          for(var y=0;y<A.sy;y++) {
-            if(draw_grads) {
-              var dval = Math.floor((A.get_grad(x,y,d)-mm.minv)/mm.dv*255);
-            } else {
-              var dval = Math.floor((A.get(x,y,d)-mm.minv)/mm.dv*255);  
-            }
-            for(var dx=0;dx<s;dx++) {
-              for(var dy=0;dy<s;dy++) {
-                var pp = ((W * (y*s+dy)) + (dx + x*s)) * 4;
-                for(var i=0;i<3;i++) { g.data[pp + i] = dval; } // rgb
-                g.data[pp+3] = 255; // alpha channel
-              }
-            }
-          }
-        }
-        ctx.putImageData(g, 0, 0);
-        elt.appendChild(canv);
-      }  
-    }
-
-    var visualize_activations = function(net, elt, l) {
-
-      // clear the element
-      elt.innerHTML = "";
-
-      // show activations in each layer
-      var L = net.layers[l];
-
-        var layer_div = document.createElement('div');
-
-        // visualize activations
-        var activations_div = document.createElement('div');
-        activations_div.appendChild(document.createTextNode('Activations:'));
-        activations_div.appendChild(document.createElement('br'));
-        activations_div.className = 'layer_act';
-        var scale = 2;
-        if(L.layer_type==='softmax' || L.layer_type==='fc') scale = 10; // for softmax
-        draw_activations(activations_div, L.out_act, scale);
-
-        // visualize filters if they are of reasonable size
-        if(L.layer_type === 'conv') {
-          var filters_div = document.createElement('div');
-          activations_div.appendChild(filters_div);
-        }
-        layer_div.appendChild(activations_div);
-
-        // print some stats on left of the layer
-        layer_div.className = 'layer ' + 'lt' + L.layer_type;
-        var title_div = document.createElement('div');
-        title_div.className = 'ltitle'
-        var t = L.layer_type + ' (' + L.out_sx + 'x' + L.out_sy + 'x' + L.out_depth + ')';
-        title_div.appendChild(document.createTextNode(t));
-        layer_div.appendChild(title_div);
-
-        if(L.layer_type==='conv') {
-          var t = 'filter size ' + L.filters[0].sx + 'x' + L.filters[0].sy + 'x' + L.filters[0].depth + ', stride ' + L.stride;
-          layer_div.appendChild(document.createTextNode(t));
-          layer_div.appendChild(document.createElement('br'));
-        }
-        if(L.layer_type==='pool') {
-          var t = 'pooling size ' + L.sx + 'x' + L.sy + ', stride ' + L.stride;
-          layer_div.appendChild(document.createTextNode(t));
-          layer_div.appendChild(document.createElement('br'));
-        }
-
-        // find min, max activations and display them
-        var mma = cnnutil.maxmin(L.out_act.w);
-        var t = 'max activation: ' + cnnutil.f2t(mma.maxv) + ', min: ' + cnnutil.f2t(mma.minv);
-        layer_div.appendChild(document.createTextNode(t));
-        layer_div.appendChild(document.createElement('br'));
-
-        var mma = cnnutil.maxmin(L.out_act.dw);
-        var t = 'max gradient: ' + cnnutil.f2t(mma.maxv) + ', min: ' + cnnutil.f2t(mma.minv);
-        layer_div.appendChild(document.createTextNode(t));
-        layer_div.appendChild(document.createElement('br'));
-
-        // number of parameters
-        if(L.layer_type==='conv') {
-          var tot_params = L.sx*L.sy*L.in_depth*L.filters.length + L.filters.length;
-          var t = 'parameters: ' + L.filters.length + 'x' + L.sx + 'x' + L.sy + 'x' + L.in_depth + '+' + L.filters.length + ' = ' + tot_params;
-          layer_div.appendChild(document.createTextNode(t));
-          layer_div.appendChild(document.createElement('br'));
-        }
-        if(L.layer_type==='fc') {
-          var tot_params = L.num_inputs*L.filters.length + L.filters.length;
-          var t = 'parameters: ' + L.filters.length + 'x' + L.num_inputs + '+' + L.filters.length + ' = ' + tot_params;
-          layer_div.appendChild(document.createTextNode(t));
-          layer_div.appendChild(document.createElement('br'));
-        }
-
-        // css madness needed here...
-        var clear = document.createElement('div');
-        clear.className = 'clear';
-        layer_div.appendChild(clear);
-
-        elt.appendChild(layer_div);
-    }
+    Chart.defaults.global.defaultFontColor = '#fff';
 
     var barColors = [
       "#ff0000",
@@ -200,6 +79,11 @@
         title: {
           display: true,
           text: "Predição"
+        },
+        legend: {
+            labels: {
+                color: '#222'
+            }
         }
       }
     });
@@ -287,9 +171,10 @@
             ctx.strokeStyle = '#ffffff';
 
             // Get exact cursor position (handles mouse & touch)
-            const pos = e.type.includes('touch') 
-                ? { x: e.touches[0].clientX - canvas.offsetLeft, y: e.touches[0].clientY - canvas.offsetTop }
-                : { x: e.clientX - canvas.offsetLeft, y: e.clientY - canvas.offsetTop };
+            const rect = canvas.getBoundingClientRect();
+            const pos = e.type.includes('touch')
+                ? { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top }
+                : { x: e.clientX - rect.left, y: e.clientY - rect.top };
 
             ctx.lineTo(pos.x, pos.y);
             ctx.stroke();
