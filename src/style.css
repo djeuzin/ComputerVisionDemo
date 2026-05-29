@@ -188,6 +188,16 @@ button:hover {
     #canvasDiv {
         flex-direction: column;
     }
+
+    #pieChartDiv {
+        width: 100%;
+        height: 100%;
+    }
+
+    #pieChart {
+        width: 100% !important;
+        height: 100% !important;
+    }
 }
 
 #canvas {
