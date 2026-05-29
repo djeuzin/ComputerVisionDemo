@@ -2,6 +2,7 @@
 <html lang="pt", >
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Demo visão computacional</title>
     <link rel="stylesheet" href="./src/style.css">
 </head>
@@ -33,6 +34,8 @@
     O seu desenho passa por 8 filtros (kernels) de dimensões 5x5x1 que geram uma imagem de 8 canais (24x24x8). Essa imagem passa por uma camada de pooling que reduz a dimensão para 12x12x8. Em seguida há mais uma etapa de convolução com filtros 5x5x8 que geram uma imagem de 16 canais (12x12x16). Mais uma camada de pooling que reduz a dimensão da imagem para 4x4x16. Por fim, a imagem 4x4x16 passa por uma camada completamente conexa (fully connected) com uma saída de 10 valores que são por fim passados para a função softmax que nos dá a probabilidade para cada digito.</li>
     </ul>
 
+    <img src="./data/rede.png" alt="Diagrama da rede neural utilizada.">
+
     <h2 id="refer-ncias">Referências</h2>
     <p>Essa demonstração foi feita com base na biblioteca e sites desenvolvidos por Andrej Karpathy. O link para o site dele, outras fontes e referências úteis sobre aprendizado de máquina assim como o código fonte desse site seguem abaixo:</p>
     <ul>
@@ -42,6 +45,7 @@
     <li><a href="http://neuralnetworksanddeeplearning.com/chap2.html?ref=jeremyjordan.me">Como funciona o algoritmo de retro-propagação (backpropagation)</a></li>
     <li><a href="https://www.jeremyjordan.me/neural-networks-training/">Treinando com retro-propagação</a></li>
     <li><a href="https://www.youtube.com/playlist?list=PLBAGcD3siRDjBU8sKRk0zX9pMz9qeVxud">Curso completo sobre redes neurais convolucionais (CNNs)</a></li>
+    <li><a href="https://www.youtube.com/watch?v=y6KMqQArITk">Vídeo que serviu de inspiração para essa demo</a></li>
     </ul>
     
     <div id="visnet"></div>
